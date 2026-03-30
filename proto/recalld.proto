@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package recalld;
+
+// Core daemon service
+service Recalld {
+  // Search entries by semantic query
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  // Get timeline of screenshots
+  rpc Timeline(TimelineRequest) returns (TimelineResponse);
+
+  // Get a specific screenshot's decrypted image bytes
+  rpc GetScreenshot(ScreenshotRequest) returns (ScreenshotResponse);
+
+  // Get daemon status
+  rpc Status(StatusRequest) returns (StatusResponse);
+
+  // Get current config
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+
+  // Update config values
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+}
+
+// Plugin management service
+service Plugins {
+  // List all known plugins
+  rpc List(ListPluginsRequest) returns (ListPluginsResponse);
+
+  // Enable a plugin
+  rpc Enable(PluginId) returns (PluginActionResponse);
+
+  // Disable a plugin
+  rpc Disable(PluginId) returns (PluginActionResponse);
+}
+
+// --- Search ---
+
+message SearchRequest {
+  string query = 1;
+  uint32 limit = 2; // max results, default 20
+}
+
+message SearchResponse {
+  repeated SearchResult results = 1;
+}
+
+message SearchResult {
+  int64 id = 1;
+  string app = 2;
+  string title = 3;
+  string text = 4;
+  int64 timestamp = 5;
+  float similarity = 6;
+  string screenshot_filename = 7;
+}
+
+// --- Timeline ---
+
+message TimelineRequest {
+  int64 from_timestamp = 1; // 0 = start from beginning
+  int64 to_timestamp = 2;   // 0 = up to now
+  uint32 limit = 3;         // max entries, default 100
+}
+
+message TimelineResponse {
+  repeated TimelineEntry entries = 1;
+}
+
+message TimelineEntry {
+  int64 id = 1;
+  string app = 2;
+  string title = 3;
+  int64 timestamp = 4;
+  string screenshot_filename = 5;
+}
+
+// --- Screenshot ---
+
+message ScreenshotRequest {
+  string filename = 1;
+}
+
+message ScreenshotResponse {
+  bytes image_data = 1;
+  string content_type = 2; // e.g. "image/webp"
+}
+
+// --- Status ---
+
+message StatusRequest {}
+
+message StatusResponse {
+  bool running = 1;
+  int64 uptime_seconds = 2;
+  int64 total_entries = 3;
+  int64 last_capture_timestamp = 4;
+  string capture_backend = 5;
+  uint32 active_plugins = 6;
+}
+
+// --- Config ---
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  string config_toml = 1; // serialised TOML
+}
+
+message SetConfigRequest {
+  string config_toml = 1;
+}
+
+message SetConfigResponse {}
+
+// --- Plugins ---
+
+message ListPluginsRequest {}
+
+message ListPluginsResponse {
+  repeated PluginInfo plugins = 1;
+}
+
+message PluginInfo {
+  string name = 1;
+  string version = 2;
+  bool enabled = 3;
+  repeated string event_subscriptions = 4;
+}
+
+message PluginId {
+  string name = 1;
+}
+
+message PluginActionResponse {
+  bool success = 1;
+  string message = 2;
+}
