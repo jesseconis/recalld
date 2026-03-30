@@ -6,7 +6,7 @@ build:
 	@echo "Building 👷  {{name}} v{{version}}..."
 	mkdir -p dist
 	cargo build --release
-	cp target/release/{{name}} dist/{{name}}-{{version}}
+	cp target/release/{{name}} dist/{{name}}-v{{version}}
 	@echo "Done ✅"
 
 test:
@@ -21,7 +21,7 @@ gh-release level='patch': (prepare-release level)
     git fetch --tags
     VERSION=$(cargo metadata --no-deps --format-version 1 | python3 -c "import sys,json; print(json.load(sys.stdin)['packages'][0]['version'])")
     gh release create "v${VERSION}" \
-        "./dist/{{name}}-v${VERSION}" \
+        "./dist/{{name}}-${VERSION}" \
         --generate-notes
 
 # Install binary and systemd service for current user
