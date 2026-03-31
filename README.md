@@ -2,9 +2,72 @@
 Retrace your steps in Wayland 🐧
 
 
+## Usage 
+
+### CLI
+
+The current CLI surface is easiest to keep accurate by capturing Clap's generated help output directly from the binary:
+
+```console
+$ ./target/release/recalld --help
+Linux screen recall daemon
+
+Usage: recalld <COMMAND>
+
+Commands:
+	daemon  Start the daemon (capture loop + gRPC server)
+	search  Search stored screenshots by semantic query
+	status  Show daemon status
+	plugin  Manage plugins
+	config  Write config file to stdout
+	help    Print this message or the help of the given subcommand(s)
+
+Options:
+	-h, --help     Print help
+	-V, --version  Print version
+```
+
+If you want to refresh this section later, rerun `./target/release/recalld --help` after rebuilding.
+
+### HTTP Server
+
+The web UI is not a separate service. It is an HTTP server started from the same daemon process that already owns capture, storage, and gRPC.
+
+- The gRPC server and HTTP server are spawned side-by-side from the daemon runtime.
+- By default gRPC listens on `[::1]:50051` and HTTP listens on `127.0.0.1:58080`.
+- The browser sends the encryption passphrase to the daemon over localhost HTTP for login verification. The daemon uses it to test-unlock key.enc, issues a session cookie on success, and keeps the DEK server-side.
+- Screenshot bytes are still stored encrypted on disk and are decrypted by the daemon on demand before being returned over HTTP.
+- Search, gallery paging, detail lookup, and screenshot retrieval all execute against the same in-process storage/query layer used by the native API surface.
+
+In practice this means the web path is just another daemon interface, not a second application stack. 
+
+### Status 
+
+```console
+jesse@archl:~/gh/recalld^main ♥
+$ RUST_LOG=recalld::daemon=debug,recalld::embedding=debug ./target/release/recalld status
+Status:          running
+Uptime:          5985s
+Total entries:   237
+Last capture:    ts=1774961692
+Capture backend: auto
+Active plugins:  0
+```
+
+## Files
+
+```console
+/home/jesse/.local/share/recalld
+├── key.enc
+├── recalld.db
+├── recalld.db-shm
+├── recalld.db-wal
+└── recalld.pid
+```
+
 
 > [!WARNING] 
-> 🤖 You didn't write this...might be correct, totally false or somewhere inbetween 🤷
+> 🤖 You didn't write this below...might be correct, totally false or somewhere inbetween 🤷
 
 ## Capture Tuning
 
