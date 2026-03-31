@@ -6,8 +6,6 @@ Retrace your steps in Wayland 🐧
 
 ### CLI
 
-The current CLI surface is easiest to keep accurate by capturing Clap's generated help output directly from the binary:
-
 ```console
 $ ./target/release/recalld --help
 Linux screen recall daemon
@@ -26,8 +24,6 @@ Options:
 	-h, --help     Print help
 	-V, --version  Print version
 ```
-
-If you want to refresh this section later, rerun `./target/release/recalld --help` after rebuilding.
 
 ### HTTP Server
 
