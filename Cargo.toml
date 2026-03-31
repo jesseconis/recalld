@@ -35,8 +35,8 @@ leptess = "0.14"
 fastembed = "4"
 
 # WASM plugin runtime
-wasmtime = "30"
-wasmtime-wasi = "30"
+wasmtime = "36"
+wasmtime-wasi = "33"
 
 # D-Bus (for future native portal screenshot API)
 # zbus = { version = "5", default-features = false, features = ["tokio"] }
