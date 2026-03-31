@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use wasmtime::{Engine, Linker, Module, Store};
 use wasmtime_wasi::preview1::WasiP1Ctx;
-use wasmtime_wasi::WasiCtxBuilder;
+use wasmtime_wasi::p2::WasiCtxBuilder;
 
 /// Host state available to WASM plugins.
 pub struct PluginHostState {
@@ -30,9 +30,10 @@ pub fn load_plugin(
     let mut linker: Linker<PluginHostState> = Linker::new(engine);
 
     // Link WASI imports for basic I/O
-    wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |state: &mut PluginHostState| {
+    /* wasmtime_wasi::preview1::add_to_linker_sync(&mut linker, |state: &mut PluginHostState| {
         &mut state.wasi
     })?;
+    */
 
     // Register host functions that plugins can call
     register_host_functions(&mut linker)?;
