@@ -41,6 +41,12 @@ The web UI is not a separate service. It is an HTTP server started from the same
 
 In practice this means the web path is just another daemon interface, not a second application stack. 
 
+#### UI
+
+> This is a preview, expect functionality to lag behind core features
+
+![](docs/webui-preview.png)
+
 ### Status 
 
 ```console
