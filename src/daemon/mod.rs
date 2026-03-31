@@ -2,6 +2,7 @@ pub mod pipeline;
 pub mod scheduler;
 
 use anyhow::{Context, Result};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::config::Config;
@@ -10,7 +11,7 @@ use crate::storage::Storage;
 /// Shared daemon state accessible by the gRPC service layer.
 pub struct DaemonState {
     pub config: Config,
-    pub storage: Storage,
+    pub storage: Arc<Storage>,
     pub start_time: Instant,
 }
 
@@ -19,6 +20,7 @@ pub struct DaemonState {
 /// Blocks until SIGTERM or SIGINT is received.
 pub async fn run(config: Config, storage: Storage) -> Result<()> {
     let start_time = Instant::now();
+    let storage = Arc::new(storage);
 
     // Lower CPU scheduling priority so we don't compete with the desktop.
     // SAFETY: nice(2) is always safe to call; errors just mean we stay at default priority.
@@ -28,6 +30,8 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     tracing::debug!("set process nice level to 10");
 
     // Pre-warm the embedding model in the background so the first capture isn't delayed.
+    // Thread counts are constrained via env vars before runtime startup; avoid per-thread
+    // CPU affinity here because it can hurt compositor/input responsiveness.
     let emb_threads = config.processing.embedding_threads;
     let warmup = tokio::task::spawn_blocking(move || {
         tracing::info!(threads = emb_threads, "pre-loading embedding model...");
@@ -53,9 +57,9 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     let backend = crate::capture::select_backend(&config.capture.backend).await?;
     tracing::info!(backend = backend.name(), "capture backend selected");
 
-    let state = std::sync::Arc::new(DaemonState {
+    let state = Arc::new(DaemonState {
         config: config.clone(),
-        storage,
+        storage: Arc::clone(&storage),
         start_time,
     });
 
@@ -76,10 +80,18 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     let scheduler_shutdown_rx = shutdown_rx.clone();
     let capture_interval = Duration::from_secs(config.capture.interval_secs);
     let similarity_threshold = config.capture.similarity_threshold;
+    tracing::info!(
+        interval_secs = config.capture.interval_secs,
+        similarity_threshold,
+        max_hamming_distance = pipeline::max_hamming_distance(similarity_threshold),
+        dedupe_baseline = "last_captured",
+        "capture scheduler configured"
+    );
+    let scheduler_storage = Arc::clone(&storage);
     let scheduler_handle = tokio::spawn(async move {
         if let Err(e) = scheduler::run(
             backend.as_ref(),
-            &state.storage,
+            scheduler_storage,
             capture_interval,
             similarity_threshold,
             scheduler_shutdown_rx,

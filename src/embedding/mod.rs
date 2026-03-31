@@ -1,27 +1,15 @@
 use anyhow::{Context, Result};
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use std::sync::{Mutex, OnceLock};
+use std::time::Instant;
 
 static MODEL: OnceLock<Mutex<TextEmbedding>> = OnceLock::new();
 
-/// Number of cores the heavy-work threads are pinned to.
+/// Configured thread count for embedding-related libraries.
 static WORK_CORES: OnceLock<usize> = OnceLock::new();
 
-/// Pin the calling thread to the first `n` CPUs.
-/// This limits parallelism for any library that reads available_parallelism()
-/// or spawns OpenMP threads (Tesseract, ONNX Runtime).
-pub fn pin_to_limited_cores(n: usize) {
-    unsafe {
-        let mut restricted: libc::cpu_set_t = std::mem::zeroed();
-        for i in 0..n.min(libc::CPU_SETSIZE as usize) {
-            libc::CPU_SET(i, &mut restricted);
-        }
-        libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &restricted);
-    }
-}
-
 fn init_model(threads: usize) -> TextEmbedding {
-    pin_to_limited_cores(threads);
+    WORK_CORES.get_or_init(|| threads);
     TextEmbedding::try_new(InitOptions::new(EmbeddingModel::AllMiniLML6V2))
         .expect("failed to initialise fastembed model (all-MiniLM-L6-v2)")
 }
@@ -40,36 +28,56 @@ pub fn warm_up_with_threads(threads: usize) -> Result<()> {
     Ok(())
 }
 
-/// Return the configured number of work cores (for use by other modules).
-pub fn work_cores() -> usize {
-    *WORK_CORES.get_or_init(|| 2)
-}
-
 /// Generate a 384-dimensional embedding for the given text.
 ///
 /// Concatenates all non-empty lines into a single string and embeds it in one
 /// pass to avoid rayon's parallel batching overhead for many small sentences.
 pub fn embed(text: &str) -> Result<Vec<f32>> {
+    let total_start = Instant::now();
+    let model_start = Instant::now();
     let model = get_model()?;
     let model = model.lock().unwrap();
+    let lock_ms = model_start.elapsed().as_millis();
 
     // Collapse to a single string — the model handles short texts well and this
     // avoids spawning rayon threads for per-line batches.
+    let collapse_start = Instant::now();
     let collapsed: String = text
         .lines()
         .filter(|l| !l.trim().is_empty())
         .collect::<Vec<_>>()
         .join(". ");
+    let collapse_ms = collapse_start.elapsed().as_millis();
 
     if collapsed.is_empty() {
+        tracing::debug!(
+            text_len = text.len(),
+            lock_ms,
+            collapse_ms,
+            total_ms = total_start.elapsed().as_millis(),
+            "embedding skipped (empty text)"
+        );
         return Ok(vec![0.0; 384]);
     }
 
+    let collapsed_len = collapsed.len();
+    let embed_start = Instant::now();
     let embeddings = model
         .embed(vec![collapsed.as_str()], None)
         .context("fastembed encoding failed")?;
+    let embed_ms = embed_start.elapsed().as_millis();
 
-    Ok(embeddings.into_iter().next().unwrap_or_else(|| vec![0.0; 384]))
+    let result = embeddings.into_iter().next().unwrap_or_else(|| vec![0.0; 384]);
+    tracing::debug!(
+        text_len = text.len(),
+        collapsed_len,
+        lock_ms,
+        collapse_ms,
+        embed_ms,
+        total_ms = total_start.elapsed().as_millis(),
+        "embedding generated"
+    );
+    Ok(result)
 }
 
 /// Cosine similarity between two vectors.
