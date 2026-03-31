@@ -97,6 +97,17 @@ impl Storage {
 
     /// Search entries by semantic similarity. Returns top-K results sorted by similarity descending.
     pub fn search(&self, query_embedding: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
+        let page = self.search_paged(query_embedding, limit, 0)?;
+        Ok(page.results)
+    }
+
+    /// Search entries by semantic similarity with pagination.
+    pub fn search_paged(
+        &self,
+        query_embedding: &[f32],
+        limit: usize,
+        offset: usize,
+    ) -> Result<PagedSearchResults> {
         let conn = self.conn.lock().unwrap();
         let entries = db::get_all_entries(&conn)?;
 
@@ -119,14 +130,56 @@ impl Storage {
             .collect();
 
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
-        results.truncate(limit);
-        Ok(results)
+        let total = results.len();
+        let page = results
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .collect::<Vec<_>>();
+
+        Ok(PagedSearchResults {
+            total,
+            results: page,
+        })
     }
 
     /// Get timeline entries between two timestamps.
     pub fn timeline(&self, from: i64, to: i64, limit: u32) -> Result<Vec<db::Entry>> {
+        let page = self.timeline_paged(from, to, limit, 0)?;
+        Ok(page.entries)
+    }
+
+    /// Get timeline entries between two timestamps with pagination.
+    pub fn timeline_paged(
+        &self,
+        from: i64,
+        to: i64,
+        limit: u32,
+        offset: u32,
+    ) -> Result<TimelinePage> {
         let conn = self.conn.lock().unwrap();
-        db::get_timeline(&conn, from, to, limit)
+        let total = db::count_timeline(&conn, from, to)?;
+        let entries = db::get_timeline_paged(&conn, from, to, limit, offset)?;
+        Ok(TimelinePage { total, entries })
+    }
+
+    /// Get a single entry's metadata and decrypted OCR text.
+    pub fn entry_detail(&self, id: i64) -> Result<Option<EntryDetail>> {
+        let conn = self.conn.lock().unwrap();
+        let Some(entry) = db::get_entry_by_id(&conn, id)? else {
+            return Ok(None);
+        };
+        drop(conn);
+
+        let text = self.decrypt_text(&entry.text_enc).unwrap_or_default();
+        Ok(Some(EntryDetail {
+            id: entry.id,
+            app: entry.app,
+            title: entry.title,
+            text,
+            timestamp: entry.timestamp,
+            screenshot_filename: entry.screenshot_filename,
+        }))
     }
 
     /// Total number of stored entries.
@@ -161,5 +214,30 @@ pub struct SearchResult {
     pub text: String,
     pub timestamp: i64,
     pub similarity: f32,
+    pub screenshot_filename: String,
+}
+
+/// A paginated semantic-search result page.
+#[derive(Debug, Clone)]
+pub struct PagedSearchResults {
+    pub total: usize,
+    pub results: Vec<SearchResult>,
+}
+
+/// A paginated timeline query result page.
+#[derive(Debug, Clone)]
+pub struct TimelinePage {
+    pub total: i64,
+    pub entries: Vec<db::Entry>,
+}
+
+/// Detailed entry data for detail panels.
+#[derive(Debug, Clone)]
+pub struct EntryDetail {
+    pub id: i64,
+    pub app: String,
+    pub title: String,
+    pub text: String,
+    pub timestamp: i64,
     pub screenshot_filename: String,
 }

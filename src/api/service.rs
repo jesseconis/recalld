@@ -40,15 +40,19 @@ impl proto::recalld_server::Recalld for RecalldService {
         } else {
             req.limit as usize
         };
+        let offset = req.offset as usize;
         let query = req.query;
         let storage = Arc::clone(&self.state.storage);
-        let results = run_blocking("search", move || {
+        let page = run_blocking("search", move || {
             let query_embedding = crate::embedding::embed(&query).context("embedding failed")?;
-            storage.search(&query_embedding, limit).context("search failed")
+            storage
+                .search_paged(&query_embedding, limit, offset)
+                .context("search failed")
         })
         .await?;
 
-        let results = results
+        let results = page
+            .results
             .into_iter()
             .map(|r| proto::SearchResult {
                 id: r.id,
@@ -61,7 +65,10 @@ impl proto::recalld_server::Recalld for RecalldService {
             })
             .collect();
 
-        Ok(Response::new(proto::SearchResponse { results }))
+        Ok(Response::new(proto::SearchResponse {
+            results,
+            total_count: page.total as u64,
+        }))
     }
 
     async fn timeline(
@@ -72,13 +79,17 @@ impl proto::recalld_server::Recalld for RecalldService {
         let from = if req.from_timestamp == 0 { 0 } else { req.from_timestamp };
         let to = if req.to_timestamp == 0 { i64::MAX } else { req.to_timestamp };
         let limit = if req.limit == 0 { 100 } else { req.limit };
+        let offset = req.offset;
         let storage = Arc::clone(&self.state.storage);
-        let entries = run_blocking("timeline query", move || {
-            storage.timeline(from, to, limit).context("timeline query failed")
+        let page = run_blocking("timeline query", move || {
+            storage
+                .timeline_paged(from, to, limit, offset)
+                .context("timeline query failed")
         })
         .await?;
 
-        let entries = entries
+        let entries = page
+            .entries
             .into_iter()
             .map(|e| proto::TimelineEntry {
                 id: e.id,
@@ -89,7 +100,10 @@ impl proto::recalld_server::Recalld for RecalldService {
             })
             .collect();
 
-        Ok(Response::new(proto::TimelineResponse { entries }))
+        Ok(Response::new(proto::TimelineResponse {
+            entries,
+            total_count: page.total.max(0) as u64,
+        }))
     }
 
     async fn get_screenshot(
@@ -106,6 +120,31 @@ impl proto::recalld_server::Recalld for RecalldService {
         Ok(Response::new(proto::ScreenshotResponse {
             image_data: data,
             content_type: "image/webp".into(),
+        }))
+    }
+
+    async fn get_entry_detail(
+        &self,
+        request: Request<proto::EntryDetailRequest>,
+    ) -> Result<Response<proto::EntryDetailResponse>, Status> {
+        let id = request.into_inner().id;
+        let storage = Arc::clone(&self.state.storage);
+        let detail = run_blocking("entry detail", move || {
+            storage.entry_detail(id).context("entry detail failed")
+        })
+        .await?;
+
+        let Some(detail) = detail else {
+            return Err(Status::not_found(format!("entry not found: {id}")));
+        };
+
+        Ok(Response::new(proto::EntryDetailResponse {
+            id: detail.id,
+            app: detail.app,
+            title: detail.title,
+            text: detail.text,
+            timestamp: detail.timestamp,
+            screenshot_filename: detail.screenshot_filename,
         }))
     }
 

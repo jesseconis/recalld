@@ -13,6 +13,9 @@ service Recalld {
   // Get a specific screenshot's decrypted image bytes
   rpc GetScreenshot(ScreenshotRequest) returns (ScreenshotResponse);
 
+  // Get a specific entry's metadata and decrypted OCR text
+  rpc GetEntryDetail(EntryDetailRequest) returns (EntryDetailResponse);
+
   // Get daemon status
   rpc Status(StatusRequest) returns (StatusResponse);
 
@@ -40,10 +43,12 @@ service Plugins {
 message SearchRequest {
   string query = 1;
   uint32 limit = 2; // max results, default 20
+  uint32 offset = 3; // result offset for pagination
 }
 
 message SearchResponse {
   repeated SearchResult results = 1;
+  uint64 total_count = 2;
 }
 
 message SearchResult {
@@ -62,10 +67,12 @@ message TimelineRequest {
   int64 from_timestamp = 1; // 0 = start from beginning
   int64 to_timestamp = 2;   // 0 = up to now
   uint32 limit = 3;         // max entries, default 100
+  uint32 offset = 4;        // result offset for pagination
 }
 
 message TimelineResponse {
   repeated TimelineEntry entries = 1;
+  uint64 total_count = 2;
 }
 
 message TimelineEntry {
@@ -74,6 +81,19 @@ message TimelineEntry {
   string title = 3;
   int64 timestamp = 4;
   string screenshot_filename = 5;
+}
+
+message EntryDetailRequest {
+  int64 id = 1;
+}
+
+message EntryDetailResponse {
+  int64 id = 1;
+  string app = 2;
+  string title = 3;
+  string text = 4;
+  int64 timestamp = 5;
+  string screenshot_filename = 6;
 }
 
 // --- Screenshot ---

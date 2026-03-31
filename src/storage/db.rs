@@ -97,15 +97,26 @@ pub fn get_timeline(
     to: i64,
     limit: u32,
 ) -> Result<Vec<Entry>> {
+    get_timeline_paged(conn, from, to, limit, 0)
+}
+
+/// Get a timeline of entries between two timestamps (inclusive), with pagination.
+pub fn get_timeline_paged(
+    conn: &Connection,
+    from: i64,
+    to: i64,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<Entry>> {
     let mut stmt = conn.prepare(
         "SELECT id, app, title, text_enc, timestamp, embedding_enc, screenshot_filename
          FROM entries
          WHERE timestamp >= ?1 AND timestamp <= ?2
          ORDER BY timestamp DESC
-         LIMIT ?3",
+         LIMIT ?3 OFFSET ?4",
     )?;
     let entries = stmt
-        .query_map(params![from, to, limit], |row| {
+        .query_map(params![from, to, limit, offset], |row| {
             Ok(Entry {
                 id: row.get(0)?,
                 app: row.get(1)?,
@@ -119,6 +130,40 @@ pub fn get_timeline(
         .collect::<std::result::Result<Vec<_>, _>>()
         .context("failed to read timeline entries")?;
     Ok(entries)
+}
+
+/// Count entries between two timestamps (inclusive).
+pub fn count_timeline(conn: &Connection, from: i64, to: i64) -> Result<i64> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM entries WHERE timestamp >= ?1 AND timestamp <= ?2",
+        params![from, to],
+        |row| row.get(0),
+    )?;
+    Ok(count)
+}
+
+/// Look up a single entry by ID.
+pub fn get_entry_by_id(conn: &Connection, id: i64) -> Result<Option<Entry>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, app, title, text_enc, timestamp, embedding_enc, screenshot_filename
+         FROM entries
+         WHERE id = ?1",
+    )?;
+
+    let mut rows = stmt.query(params![id])?;
+    if let Some(row) = rows.next()? {
+        return Ok(Some(Entry {
+            id: row.get(0)?,
+            app: row.get(1)?,
+            title: row.get(2)?,
+            text_enc: row.get(3)?,
+            timestamp: row.get(4)?,
+            embedding_enc: row.get(5)?,
+            screenshot_filename: row.get(6)?,
+        }));
+    }
+
+    Ok(None)
 }
 
 /// Get the total number of entries.
@@ -173,5 +218,28 @@ mod tests {
         let entries = get_timeline(&conn, 200, 400, 100).unwrap();
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].timestamp, 400); // DESC order
+    }
+
+    #[test]
+    fn timeline_paged_query() {
+        let conn = mem_db();
+        for ts in [100, 200, 300, 400, 500] {
+            insert_entry(&conn, "app", "t", b"t", ts, b"e", &format!("{ts}.webp")).unwrap();
+        }
+        let page = get_timeline_paged(&conn, 0, i64::MAX, 2, 1).unwrap();
+        assert_eq!(page.len(), 2);
+        assert_eq!(page[0].timestamp, 400);
+        assert_eq!(page[1].timestamp, 300);
+    }
+
+    #[test]
+    fn entry_lookup_by_id() {
+        let conn = mem_db();
+        let id = insert_entry(&conn, "firefox", "GitHub", b"enc-text", 1234, b"enc-emb", "1234.webp")
+            .unwrap();
+        let row = get_entry_by_id(&conn, id).unwrap();
+        assert!(row.is_some());
+        assert_eq!(row.unwrap().timestamp, 1234);
+        assert!(get_entry_by_id(&conn, id + 1).unwrap().is_none());
     }
 }

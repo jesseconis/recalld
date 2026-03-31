@@ -47,6 +47,7 @@ pub async fn search(addr: &str, query: &str, limit: u32) -> Result<()> {
         .search(proto::SearchRequest {
             query: query.to_string(),
             limit,
+            offset: 0,
         })
         .await?
         .into_inner();
