@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::bail;
+use anyhow::{bail, ensure};
 use serde::{Deserialize, Serialize};
 
 /// Default capture interval in seconds.
@@ -8,6 +8,7 @@ const DEFAULT_CAPTURE_INTERVAL: u64 = 30;
 /// Default idle timeout in seconds before pausing captures.
 const DEFAULT_IDLE_TIMEOUT: u64 = 60;
 /// Default similarity threshold (0.0–1.0) to skip duplicate screenshots.
+/// Higher values are stricter; lower values skip more aggressively.
 const DEFAULT_SIMILARITY_THRESHOLD: f64 = 0.9;
 /// Default gRPC listen address.
 const DEFAULT_GRPC_ADDR: &str = "[::1]:50051";
@@ -33,7 +34,8 @@ pub struct CaptureConfig {
     pub interval_secs: u64,
     /// Seconds of user inactivity before pausing captures.
     pub idle_timeout_secs: u64,
-    /// SSIM / perceptual-hash similarity threshold to skip duplicates.
+    /// Perceptual-hash similarity threshold in the range [0.0, 1.0].
+    /// Higher values are stricter; lower values skip more captures.
     pub similarity_threshold: f64,
     /// Force a specific backend: "portal", "wayshot", "grim", or "auto".
     pub backend: String,
@@ -130,24 +132,44 @@ impl Default for ProcessingConfig {
 impl Config {
     /// Load config from the standard XDG path, falling back to defaults.
     pub fn load() -> anyhow::Result<Self> {
-        let path = match config_file_path() {
+        let cfg = match config_file_path() {
             Ok(path) => path,
-            Err(_) => return Ok(Config::default()),
+            Err(_) => {
+                let cfg = Config::default();
+                cfg.validate()?;
+                return Ok(cfg);
+            }
         };
 
-        let text = std::fs::read_to_string(&path)?;
+        let text = std::fs::read_to_string(&cfg)?;
         let cfg: Config = toml::from_str(&text)?;
+        cfg.validate()?;
         Ok(cfg)
     }
 
     /// Save config to the standard XDG path.
     pub fn save(&self) -> anyhow::Result<()> {
+        self.validate()?;
         let path = config_file_path_raw();
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
         let text = toml::to_string_pretty(self)?;
         std::fs::write(&path, text)?;
+        Ok(())
+    }
+
+    /// Validate configuration values that can make capture behavior surprising.
+    pub fn validate(&self) -> anyhow::Result<()> {
+        ensure!(self.capture.interval_secs > 0, "capture.interval_secs must be greater than 0");
+        ensure!(
+            (0.0..=1.0).contains(&self.capture.similarity_threshold),
+            "capture.similarity_threshold must be between 0.0 and 1.0 inclusive"
+        );
+        ensure!(
+            self.processing.embedding_threads > 0,
+            "processing.embedding_threads must be greater than 0"
+        );
         Ok(())
     }
 
