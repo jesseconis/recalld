@@ -45,6 +45,8 @@ In practice this means the web path is just another daemon interface, not a seco
 
 > This is a preview, expect functionality to lag behind core features
 
+![](docs/webui-login-preview.png)
+
 ![](docs/webui-preview.png)
 
 ### Status 
