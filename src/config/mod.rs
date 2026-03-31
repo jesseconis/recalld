@@ -12,6 +12,14 @@ const DEFAULT_IDLE_TIMEOUT: u64 = 60;
 const DEFAULT_SIMILARITY_THRESHOLD: f64 = 0.9;
 /// Default gRPC listen address.
 const DEFAULT_GRPC_ADDR: &str = "[::1]:50051";
+/// Default HTTP listen address for the web UI/API.
+const DEFAULT_HTTP_ADDR: &str = "127.0.0.1:58080";
+/// Default HTTP session TTL for web logins.
+const DEFAULT_HTTP_SESSION_TTL_SECS: u64 = 60 * 60 * 24;
+/// Default number of gallery items per page.
+const DEFAULT_HTTP_PAGE_SIZE: u32 = 24;
+/// Max page size accepted by the web API.
+const DEFAULT_HTTP_MAX_PAGE_SIZE: u32 = 100;
 /// Default max search results.
 const DEFAULT_SEARCH_LIMIT: u32 = 20;
 /// Default number of threads for the embedding model (ONNX Runtime intra-op).
@@ -23,6 +31,7 @@ pub struct Config {
     pub capture: CaptureConfig,
     pub storage: StorageConfig,
     pub grpc: GrpcConfig,
+    pub http: HttpConfig,
     pub plugins: PluginsConfig,
     pub processing: ProcessingConfig,
 }
@@ -57,6 +66,21 @@ pub struct GrpcConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+pub struct HttpConfig {
+    /// Whether the HTTP server is enabled.
+    pub enabled: bool,
+    /// Address the HTTP server listens on.
+    pub listen_addr: String,
+    /// Session cookie lifetime for web logins.
+    pub session_ttl_secs: u64,
+    /// Default gallery page size.
+    pub default_page_size: u32,
+    /// Max gallery page size accepted from clients.
+    pub max_page_size: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PluginsConfig {
     /// Directory to scan for plugins.
     pub dir: Option<PathBuf>,
@@ -79,6 +103,7 @@ impl Default for Config {
             capture: CaptureConfig::default(),
             storage: StorageConfig::default(),
             grpc: GrpcConfig::default(),
+            http: HttpConfig::default(),
             plugins: PluginsConfig::default(),
             processing: ProcessingConfig::default(),
         }
@@ -106,6 +131,18 @@ impl Default for GrpcConfig {
     fn default() -> Self {
         Self {
             listen_addr: DEFAULT_GRPC_ADDR.into(),
+        }
+    }
+}
+
+impl Default for HttpConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            listen_addr: DEFAULT_HTTP_ADDR.into(),
+            session_ttl_secs: DEFAULT_HTTP_SESSION_TTL_SECS,
+            default_page_size: DEFAULT_HTTP_PAGE_SIZE,
+            max_page_size: DEFAULT_HTTP_MAX_PAGE_SIZE,
         }
     }
 }
@@ -169,6 +206,19 @@ impl Config {
         ensure!(
             self.processing.embedding_threads > 0,
             "processing.embedding_threads must be greater than 0"
+        );
+        ensure!(self.http.session_ttl_secs > 0, "http.session_ttl_secs must be greater than 0");
+        ensure!(
+            self.http.default_page_size > 0,
+            "http.default_page_size must be greater than 0"
+        );
+        ensure!(
+            self.http.max_page_size > 0,
+            "http.max_page_size must be greater than 0"
+        );
+        ensure!(
+            self.http.default_page_size <= self.http.max_page_size,
+            "http.default_page_size must be <= http.max_page_size"
         );
         Ok(())
     }

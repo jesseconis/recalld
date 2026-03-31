@@ -73,6 +73,21 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
         }
     });
 
+    // Start HTTP server (optional)
+    let http_handle = if config.http.enabled {
+        let http_addr = config.http.listen_addr.parse()?;
+        let http_state = state.clone();
+        let http_shutdown_rx = shutdown_rx.clone();
+        Some(tokio::spawn(async move {
+            if let Err(e) = crate::web::serve(http_state, http_addr, http_shutdown_rx).await {
+                tracing::error!(error = %e, "HTTP server failed");
+            }
+        }))
+    } else {
+        tracing::info!("HTTP server disabled by config");
+        None
+    };
+
     // Wait for the embedding model to finish loading before starting the scheduler.
     let _ = warmup.await;
 
@@ -118,6 +133,9 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     // Wait for tasks to finish
     let _ = tokio::time::timeout(Duration::from_secs(5), async {
         let _ = grpc_handle.await;
+        if let Some(handle) = http_handle {
+            let _ = handle.await;
+        }
         let _ = scheduler_handle.await;
     })
     .await;

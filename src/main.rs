@@ -7,10 +7,9 @@ mod embedding;
 mod ocr;
 mod plugin;
 mod storage;
+mod web;
 
 use clap::{Parser, Subcommand};
-
-use crate::config::Config;
 
 #[derive(Parser)]
 #[command(name = "recalld", version, about = "Linux screen recall daemon")]
@@ -136,7 +135,20 @@ async fn async_main(cli: Cli, config: config::Config) -> anyhow::Result<()> {
             } else {
                 anyhow::bail!("either --stdout or a file path must be provided");
             };
-            config.save()?;
+
+            let text = toml::to_string_pretty(&config)?;
+            match action {
+                ConfigAction::Stdout => {
+                    println!("{text}");
+                }
+                ConfigAction::Path(path) => {
+                    if let Some(parent) = path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    std::fs::write(&path, text)?;
+                    tracing::info!(path = %path.display(), "wrote config file");
+                }
+            }
         }
     }
 

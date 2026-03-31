@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>recalld</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="shell">
+      <section id="loginPanel" class="login-panel">
+        <h1>recalld</h1>
+        <p>Enter your encryption passphrase to unlock this browser session.</p>
+        <form id="loginForm" autocomplete="off">
+          <label for="passphraseInput">Passphrase</label>
+          <input id="passphraseInput" name="passphrase" type="password" required />
+          <button type="submit">Unlock</button>
+        </form>
+        <p id="loginError" class="error"></p>
+      </section>
+
+      <section id="app" class="app hidden" aria-live="polite">
+        <header class="topbar">
+          <div class="brand">
+            <h1>recalld</h1>
+            <p id="statusLine">Loading status...</p>
+          </div>
+          <div class="search-wrap">
+            <label for="searchInput">Find screenshots</label>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Try app names, titles, or OCR text"
+              autocomplete="off"
+            />
+          </div>
+        </header>
+
+        <section class="content">
+          <div class="gallery-column">
+            <div class="toolbar">
+              <p id="resultSummary">No data loaded.</p>
+              <div class="pagination">
+                <button id="prevPageBtn" type="button">Previous</button>
+                <span id="pageLabel">Page 1</span>
+                <button id="nextPageBtn" type="button">Next</button>
+              </div>
+            </div>
+
+            <div id="galleryGrid" class="gallery-grid"></div>
+          </div>
+
+          <aside class="detail-column" id="detailPanel">
+            <h2>Details</h2>
+            <p class="muted">Select a screenshot to view metadata and OCR text.</p>
+            <dl id="detailFields" class="detail-fields hidden">
+              <dt>ID</dt>
+              <dd id="detailId"></dd>
+
+              <dt>Timestamp</dt>
+              <dd id="detailTimestamp"></dd>
+
+              <dt>Application</dt>
+              <dd id="detailApp"></dd>
+
+              <dt>Title</dt>
+              <dd id="detailTitle"></dd>
+
+              <dt>Screenshot File</dt>
+              <dd id="detailFilename"></dd>
+
+              <dt>OCR Text</dt>
+              <dd><pre id="detailText"></pre></dd>
+            </dl>
+
+            <details class="admin">
+              <summary>Admin</summary>
+              <p class="muted">Read-only daemon status and current config.</p>
+              <pre id="configView">Loading config...</pre>
+            </details>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
