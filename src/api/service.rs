@@ -1,3 +1,4 @@
+use anyhow::Context;
 use std::sync::Arc;
 use tonic::{Request, Response, Status};
 
@@ -16,6 +17,17 @@ impl RecalldService {
     }
 }
 
+async fn run_blocking<T, F>(label: &'static str, task: F) -> Result<T, Status>
+where
+    T: Send + 'static,
+    F: FnOnce() -> anyhow::Result<T> + Send + 'static,
+{
+    tokio::task::spawn_blocking(task)
+        .await
+        .map_err(|e| Status::internal(format!("{label} task failed: {e}")))?
+        .map_err(|e| Status::internal(e.to_string()))
+}
+
 #[tonic::async_trait]
 impl proto::recalld_server::Recalld for RecalldService {
     async fn search(
@@ -28,15 +40,13 @@ impl proto::recalld_server::Recalld for RecalldService {
         } else {
             req.limit as usize
         };
-
-        let query_embedding = crate::embedding::embed(&req.query)
-            .map_err(|e| Status::internal(format!("embedding failed: {e}")))?;
-
-        let results = self
-            .state
-            .storage
-            .search(&query_embedding, limit)
-            .map_err(|e| Status::internal(format!("search failed: {e}")))?;
+        let query = req.query;
+        let storage = Arc::clone(&self.state.storage);
+        let results = run_blocking("search", move || {
+            let query_embedding = crate::embedding::embed(&query).context("embedding failed")?;
+            storage.search(&query_embedding, limit).context("search failed")
+        })
+        .await?;
 
         let results = results
             .into_iter()
@@ -62,12 +72,11 @@ impl proto::recalld_server::Recalld for RecalldService {
         let from = if req.from_timestamp == 0 { 0 } else { req.from_timestamp };
         let to = if req.to_timestamp == 0 { i64::MAX } else { req.to_timestamp };
         let limit = if req.limit == 0 { 100 } else { req.limit };
-
-        let entries = self
-            .state
-            .storage
-            .timeline(from, to, limit)
-            .map_err(|e| Status::internal(format!("timeline query failed: {e}")))?;
+        let storage = Arc::clone(&self.state.storage);
+        let entries = run_blocking("timeline query", move || {
+            storage.timeline(from, to, limit).context("timeline query failed")
+        })
+        .await?;
 
         let entries = entries
             .into_iter()
@@ -88,10 +97,10 @@ impl proto::recalld_server::Recalld for RecalldService {
         request: Request<proto::ScreenshotRequest>,
     ) -> Result<Response<proto::ScreenshotResponse>, Status> {
         let filename = request.into_inner().filename;
-        let data = self
-            .state
-            .storage
-            .get_screenshot(&filename)
+        let storage = Arc::clone(&self.state.storage);
+        let data = tokio::task::spawn_blocking(move || storage.get_screenshot(&filename))
+            .await
+            .map_err(|e| Status::internal(format!("get_screenshot task failed: {e}")))?
             .map_err(|e| Status::not_found(format!("screenshot not found: {e}")))?;
 
         Ok(Response::new(proto::ScreenshotResponse {
@@ -105,16 +114,11 @@ impl proto::recalld_server::Recalld for RecalldService {
         _request: Request<proto::StatusRequest>,
     ) -> Result<Response<proto::StatusResponse>, Status> {
         let uptime = self.state.start_time.elapsed().as_secs() as i64;
-        let total = self
-            .state
-            .storage
-            .count()
-            .map_err(|e| Status::internal(e.to_string()))?;
-        let last_ts = self
-            .state
-            .storage
-            .latest_timestamp()
-            .map_err(|e| Status::internal(e.to_string()))?;
+        let storage = Arc::clone(&self.state.storage);
+        let (total, last_ts) = run_blocking("status query", move || {
+            Ok((storage.count()?, storage.latest_timestamp()?))
+        })
+        .await?;
 
         Ok(Response::new(proto::StatusResponse {
             running: true,

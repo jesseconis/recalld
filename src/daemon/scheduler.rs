@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time;
 
@@ -11,7 +12,7 @@ use crate::storage::Storage;
 /// Exits when the provided `shutdown` token is cancelled.
 pub async fn run(
     backend: &dyn CaptureBackend,
-    storage: &Storage,
+    storage: Arc<Storage>,
     interval: Duration,
     similarity_threshold: f64,
     shutdown: tokio::sync::watch::Receiver<bool>,
@@ -24,7 +25,7 @@ pub async fn run(
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                match pipeline::process_capture(backend, storage, &mut state, similarity_threshold).await {
+                match pipeline::process_capture(backend, Arc::clone(&storage), &mut state, similarity_threshold).await {
                     Ok(n) if n > 0 => tracing::debug!(stored = n, "capture cycle complete"),
                     Ok(_) => {} // nothing new stored
                     Err(e) => tracing::error!(error = %e, "capture cycle failed"),
