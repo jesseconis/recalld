@@ -1,6 +1,6 @@
 pub mod service;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tonic::transport::Server;
@@ -29,7 +29,8 @@ pub async fn serve(
         .add_service(recalld_server)
         .add_service(plugins_server)
         .serve_with_shutdown(addr, shutdown_signal(shutdown_rx))
-        .await?;
+        .await
+        .with_context(|| format!("gRPC transport failed on {addr}"))?;
 
     Ok(())
 }
