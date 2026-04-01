@@ -4,7 +4,7 @@ package recalld;
 
 // Core daemon service
 service Recalld {
-  // Search entries by semantic query
+  // Search entries by hybrid (semantic + lexical) query
   rpc Search(SearchRequest) returns (SearchResponse);
 
   // Get timeline of screenshots
@@ -38,7 +38,7 @@ service Plugins {
   rpc Disable(PluginId) returns (PluginActionResponse);
 }
 
-// --- Search ---
+// --- Search (hybrid semantic + lexical ranking) ---
 
 message SearchRequest {
   string query = 1;

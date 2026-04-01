@@ -42,11 +42,12 @@ impl proto::recalld_server::Recalld for RecalldService {
         };
         let offset = req.offset as usize;
         let query = req.query;
+        let lexical_weight = self.state.config.processing.lexical_weight;
         let storage = Arc::clone(&self.state.storage);
         let page = run_blocking("search", move || {
             let query_embedding = crate::embedding::embed(&query).context("embedding failed")?;
             storage
-                .search_paged(&query_embedding, limit, offset)
+            .search_paged(&query, &query_embedding, lexical_weight, limit, offset)
                 .context("search failed")
         })
         .await?;
@@ -158,6 +159,15 @@ impl proto::recalld_server::Recalld for RecalldService {
             Ok((storage.count()?, storage.latest_timestamp()?))
         })
         .await?;
+        let active_plugins = self
+            .state
+            .plugin_manager
+            .lock()
+            .unwrap()
+            .list()
+            .iter()
+            .filter(|plugin| plugin.enabled)
+            .count() as u32;
 
         Ok(Response::new(proto::StatusResponse {
             running: true,
@@ -165,7 +175,7 @@ impl proto::recalld_server::Recalld for RecalldService {
             total_entries: total,
             last_capture_timestamp: last_ts,
             capture_backend: self.state.config.capture.backend.clone(),
-            active_plugins: 0, // TODO: wire up plugin manager
+            active_plugins,
         }))
     }
 
@@ -198,23 +208,55 @@ impl proto::plugins_server::Plugins for RecalldService {
         &self,
         _request: Request<proto::ListPluginsRequest>,
     ) -> Result<Response<proto::ListPluginsResponse>, Status> {
-        // TODO: wire up plugin manager reference
+        let plugins = self
+            .state
+            .plugin_manager
+            .lock()
+            .unwrap()
+            .list()
+            .iter()
+            .map(|plugin| proto::PluginInfo {
+                name: plugin.manifest.name.clone(),
+                version: plugin.manifest.version.clone(),
+                enabled: plugin.enabled,
+                event_subscriptions: plugin.manifest.events.clone(),
+            })
+            .collect();
+
         Ok(Response::new(proto::ListPluginsResponse {
-            plugins: vec![],
+            plugins,
         }))
     }
 
     async fn enable(
         &self,
-        _request: Request<proto::PluginId>,
+        request: Request<proto::PluginId>,
     ) -> Result<Response<proto::PluginActionResponse>, Status> {
-        Err(Status::unimplemented("plugin enable not yet wired up"))
+        let name = request.into_inner().name;
+        let ok = self.state.plugin_manager.lock().unwrap().enable(&name);
+        Ok(Response::new(proto::PluginActionResponse {
+            success: ok,
+            message: if ok {
+                format!("plugin '{name}' enabled")
+            } else {
+                format!("plugin '{name}' not found")
+            },
+        }))
     }
 
     async fn disable(
         &self,
-        _request: Request<proto::PluginId>,
+        request: Request<proto::PluginId>,
     ) -> Result<Response<proto::PluginActionResponse>, Status> {
-        Err(Status::unimplemented("plugin disable not yet wired up"))
+        let name = request.into_inner().name;
+        let ok = self.state.plugin_manager.lock().unwrap().disable(&name);
+        Ok(Response::new(proto::PluginActionResponse {
+            success: ok,
+            message: if ok {
+                format!("plugin '{name}' disabled")
+            } else {
+                format!("plugin '{name}' not found")
+            },
+        }))
     }
 }

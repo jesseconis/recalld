@@ -3,6 +3,7 @@ pub mod scheduler;
 
 use anyhow::{Context, Result};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::config::Config;
@@ -12,6 +13,7 @@ use crate::storage::Storage;
 pub struct DaemonState {
     pub config: Config,
     pub storage: Arc<Storage>,
+    pub plugin_manager: Arc<Mutex<crate::plugin::PluginManager>>,
     pub start_time: Instant,
 }
 
@@ -57,9 +59,18 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     let backend = crate::capture::select_backend(&config.capture.backend).await?;
     tracing::info!(backend = backend.name(), "capture backend selected");
 
+    let metadata_provider: Arc<dyn crate::metadata::MetadataProvider> =
+        Arc::new(crate::metadata::build_provider_stack());
+    let event_bus = Arc::new(crate::plugin::events::EventBus::new(256));
+    let plugin_manager = Arc::new(Mutex::new(crate::plugin::PluginManager::new(
+        config.plugins_dir(),
+        &config.plugins.enabled,
+    )?));
+
     let state = Arc::new(DaemonState {
         config: config.clone(),
         storage: Arc::clone(&storage),
+        plugin_manager: Arc::clone(&plugin_manager),
         start_time,
     });
 
@@ -95,20 +106,27 @@ pub async fn run(config: Config, storage: Storage) -> Result<()> {
     let scheduler_shutdown_rx = shutdown_rx.clone();
     let capture_interval = Duration::from_secs(config.capture.interval_secs);
     let similarity_threshold = config.capture.similarity_threshold;
+    let ocr_options = crate::ocr::OcrOptions::from_config_width(config.processing.ocr_max_width);
     tracing::info!(
         interval_secs = config.capture.interval_secs,
         similarity_threshold,
+        ocr_max_width = ocr_options.max_width.unwrap_or(0),
         max_hamming_distance = pipeline::max_hamming_distance(similarity_threshold),
         dedupe_baseline = "last_captured",
         "capture scheduler configured"
     );
     let scheduler_storage = Arc::clone(&storage);
+    let scheduler_metadata = Arc::clone(&metadata_provider);
+    let scheduler_events = Arc::clone(&event_bus);
     let scheduler_handle = tokio::spawn(async move {
         if let Err(e) = scheduler::run(
             backend.as_ref(),
             scheduler_storage,
+            scheduler_metadata,
+            scheduler_events,
             capture_interval,
             similarity_threshold,
+            ocr_options,
             scheduler_shutdown_rx,
         )
         .await

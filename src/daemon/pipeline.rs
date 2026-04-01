@@ -105,8 +105,11 @@ impl PipelineState {
 pub async fn process_capture(
     backend: &dyn CaptureBackend,
     storage: Arc<Storage>,
+    metadata_provider: Arc<dyn crate::metadata::MetadataProvider>,
+    event_bus: Arc<crate::plugin::events::EventBus>,
     state: &mut PipelineState,
     similarity_threshold: f64,
+    ocr_options: crate::ocr::OcrOptions,
 ) -> Result<u32> {
     let capture_start = Instant::now();
     tracing::debug!(similarity_threshold, "capture cycle start");
@@ -178,9 +181,25 @@ pub async fn process_capture(
         let monitor_name = monitor.name.clone();
         let blocking_start = Instant::now();
         let storage = Arc::clone(&storage);
-        let stored = tokio::task::spawn_blocking(move || -> Result<Option<(usize, i64)>> {
+        let metadata_provider = Arc::clone(&metadata_provider);
+        let stored = tokio::task::spawn_blocking(move || -> Result<Option<(usize, i64, String)>> {
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64;
+
+            let context = metadata_provider.snapshot_for_monitor(&monitor_name, timestamp);
+            let app = context
+                .as_ref()
+                .map(|c| c.display_app(&monitor_name))
+                .unwrap_or_else(|| monitor_name.clone());
+            let title = context
+                .as_ref()
+                .map(|c| c.display_title(&monitor_name))
+                .unwrap_or_else(|| monitor_name.clone());
+
             let ocr_start = Instant::now();
-            let text = match crate::ocr::extract_text(&image) {
+            let text = match crate::ocr::extract_text_with_options(&image, ocr_options) {
                 Ok(t) => t,
                 Err(e) => {
                     tracing::warn!(monitor = %monitor_name, error = %e, "OCR failed");
@@ -201,6 +220,7 @@ pub async fn process_capture(
             tracing::debug!(
                 monitor = %monitor_name,
                 text_len = text.len(),
+                ocr_max_width = ocr_options.max_width.unwrap_or(0),
                 ocr_ms = ocr_elapsed.as_millis(),
                 "OCR complete"
             );
@@ -223,27 +243,25 @@ pub async fn process_capture(
                 "WebP encode complete"
             );
 
-            let timestamp = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64;
-
             let store_start = Instant::now();
+            let screenshot_filename = format!("{timestamp}.webp.enc");
             storage.store_entry(
-                &monitor_name,
-                &monitor_name,
+                &app,
+                &title,
                 &text,
                 timestamp,
                 &embedding,
                 &webp_bytes,
+                context.as_ref(),
             )?;
             tracing::debug!(
                 monitor = %monitor_name,
+                context_source = context.as_ref().map(|c| c.source.as_str()).unwrap_or("fallback"),
                 store_ms = store_start.elapsed().as_millis(),
                 "stored entry"
             );
 
-            Ok(Some((text.len(), timestamp)))
+            Ok(Some((text.len(), timestamp, screenshot_filename)))
         })
         .await
         .context("blocking task panicked")??;
@@ -254,10 +272,16 @@ pub async fn process_capture(
             "blocking pipeline steps complete"
         );
 
-        let Some((text_len, timestamp)) = stored else {
+        let Some((text_len, timestamp, screenshot_filename)) = stored else {
             tracing::debug!(monitor = %monitor.name, "no text extracted, skipping");
             continue;
         };
+
+        event_bus.publish(crate::plugin::events::Event::ScreenshotCaptured {
+            timestamp,
+            monitor: monitor.name.clone(),
+            screenshot_filename,
+        });
 
         stored_count += 1;
         tracing::info!(

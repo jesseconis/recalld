@@ -68,6 +68,10 @@ pub fn embed(text: &str) -> Result<Vec<f32>> {
     let embed_ms = embed_start.elapsed().as_millis();
 
     let result = embeddings.into_iter().next().unwrap_or_else(|| vec![0.0; 384]);
+    let result_text = match text.char_indices().nth(100).map(|(idx, _)| idx) {
+        Some(idx) => format!("{}...", &text[..idx]),
+        None => text.to_string(),
+    };
     tracing::debug!(
         text_len = text.len(),
         collapsed_len,
@@ -75,7 +79,7 @@ pub fn embed(text: &str) -> Result<Vec<f32>> {
         collapse_ms,
         embed_ms,
         total_ms = total_start.elapsed().as_millis(),
-        "embedding generated"
+        result_text,
     );
     Ok(result)
 }
