@@ -13,8 +13,11 @@ use crate::storage::Storage;
 pub async fn run(
     backend: &dyn CaptureBackend,
     storage: Arc<Storage>,
+    metadata_provider: Arc<dyn crate::metadata::MetadataProvider>,
+    event_bus: Arc<crate::plugin::events::EventBus>,
     interval: Duration,
     similarity_threshold: f64,
+    ocr_options: crate::ocr::OcrOptions,
     shutdown: tokio::sync::watch::Receiver<bool>,
 ) -> Result<()> {
     let mut state = PipelineState::new();
@@ -25,7 +28,15 @@ pub async fn run(
     loop {
         tokio::select! {
             _ = ticker.tick() => {
-                match pipeline::process_capture(backend, Arc::clone(&storage), &mut state, similarity_threshold).await {
+                match pipeline::process_capture(
+                    backend,
+                    Arc::clone(&storage),
+                    Arc::clone(&metadata_provider),
+                    Arc::clone(&event_bus),
+                    &mut state,
+                    similarity_threshold,
+                    ocr_options,
+                ).await {
                     Ok(n) if n > 0 => tracing::debug!(stored = n, "capture cycle complete"),
                     Ok(_) => {} // nothing new stored
                     Err(e) => tracing::error!(error = %e, "capture cycle failed"),

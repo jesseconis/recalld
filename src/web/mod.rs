@@ -93,6 +93,7 @@ struct EntryDetailResponse {
     app: String,
     title: String,
     text: String,
+    context: Option<serde_json::Value>,
     timestamp: i64,
     screenshot_filename: String,
 }
@@ -282,9 +283,16 @@ async fn search(
     );
 
     let storage = Arc::clone(&state.daemon.storage);
+    let lexical_weight = state.daemon.config.processing.lexical_weight;
     let search_page = tokio::task::spawn_blocking(move || {
         let embedding = crate::embedding::embed(&query)?;
-        storage.search_paged(&embedding, per_page as usize, offset as usize)
+        storage.search_paged(
+            &query,
+            &embedding,
+            lexical_weight,
+            per_page as usize,
+            offset as usize,
+        )
     })
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -330,6 +338,9 @@ async fn entry_detail(
         app: detail.app,
         title: detail.title,
         text: detail.text,
+        context: detail
+            .context
+            .and_then(|ctx| serde_json::to_value(ctx).ok()),
         timestamp: detail.timestamp,
         screenshot_filename: detail.screenshot_filename,
     }))
