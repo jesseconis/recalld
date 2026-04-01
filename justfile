@@ -12,6 +12,11 @@ build:
 test:
 	cargo test
 
+benchmark-screens manifest='ocr-benchmark.toml':
+	[ -d node_modules ] || npm install
+	npx playwright install chromium
+	npm run ocr-benchmark:screens -- --manifest {{manifest}}
+
 prepare-release level='patch':
     cargo-release release --execute {{level}}
 
