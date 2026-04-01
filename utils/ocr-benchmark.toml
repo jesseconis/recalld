@@ -6,7 +6,7 @@
 [[cases]]
 name = "github-recalld-repo"
 url = "https://github.com/jesseconis/recalld"
-image = "./benchmarks/screens/github-recalld-repo.png"
+image = "./screens/github-recalld-repo.png"
 expected_text = """
 jesseconis/recalld
 Retrace your steps in Wayland
@@ -21,7 +21,7 @@ terms = [
 [[cases]]
 name = "tokio-docsrs-crate"
 url = "https://docs.rs/tokio/latest/tokio/"
-image = "./benchmarks/screens/tokio-docsrs-crate.png"
+image = "./screens/tokio-docsrs-crate.png"
 expected_text = """
 Crate tokio
 A runtime for writing reliable network applications
@@ -36,7 +36,7 @@ terms = [
 [[cases]]
 name = "axum-docsrs-crate"
 url = "https://docs.rs/axum/latest/axum/"
-image = "./benchmarks/screens/axum-docsrs-crate.png"
+image = "./screens/axum-docsrs-crate.png"
 expected_text = """
 Crate axum
 axum is a web application framework that focuses on ergonomics and modularity
@@ -51,7 +51,7 @@ terms = [
 [[cases]]
 name = "clap-docsrs-crate"
 url = "https://docs.rs/clap/latest/clap/"
-image = "./benchmarks/screens/clap-docsrs-crate.png"
+image = "./screens/clap-docsrs-crate.png"
 expected_text = """
 Crate clap
 Command Line Argument Parser for Rust
@@ -66,7 +66,7 @@ terms = [
 [[cases]]
 name = "serde-home"
 url = "https://serde.rs/"
-image = "./benchmarks/screens/serde-home.png"
+image = "./screens/serde-home.png"
 expected_text = """
 Serde
 serializing and deserializing Rust data structures efficiently and generically
@@ -81,7 +81,7 @@ terms = [
 [[cases]]
 name = "rust-book-ownership"
 url = "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
-image = "./benchmarks/screens/rust-book-ownership.png"
+image = "./screens/rust-book-ownership.png"
 expected_text = """
 The Rust Programming Language
 What Is Ownership?
@@ -96,7 +96,7 @@ terms = [
 [[cases]]
 name = "rust-std-option"
 url = "https://doc.rust-lang.org/std/option/enum.Option.html"
-image = "./benchmarks/screens/rust-std-option.png"
+image = "./screens/rust-std-option.png"
 expected_text = """
 Enum Option
 Variants
@@ -111,7 +111,7 @@ terms = [
 [[cases]]
 name = "cargo-book-home"
 url = "https://doc.rust-lang.org/cargo/"
-image = "./benchmarks/screens/cargo-book-home.png"
+image = "./screens/cargo-book-home.png"
 expected_text = """
 The Cargo Book
 Cargo is the Rust package manager
@@ -126,7 +126,7 @@ terms = [
 [[cases]]
 name = "python-asyncio-docs"
 url = "https://docs.python.org/3/library/asyncio.html"
-image = "./benchmarks/screens/python-asyncio-docs.png"
+image = "./screens/python-asyncio-docs.png"
 expected_text = """
 asyncio
 High-level APIs
@@ -141,7 +141,7 @@ terms = [
 [[cases]]
 name = "sqlite-fts5"
 url = "https://www.sqlite.org/fts5.html"
-image = "./benchmarks/screens/sqlite-fts5.png"
+image = "./screens/sqlite-fts5.png"
 expected_text = """
 SQLite FTS5 Extension
 1. Overview of FTS5
@@ -156,7 +156,7 @@ terms = [
 [[cases]]
 name = "mdn-fetch-api"
 url = "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API"
-image = "./benchmarks/screens/mdn-fetch-api.png"
+image = "./screens/mdn-fetch-api.png"
 expected_text = """
 Fetch API
 The Fetch API provides an interface for fetching resources
@@ -171,7 +171,7 @@ terms = [
 [[cases]]
 name = "dockerfile-reference"
 url = "https://docs.docker.com/reference/dockerfile/"
-image = "./benchmarks/screens/dockerfile-reference.png"
+image = "./screens/dockerfile-reference.png"
 expected_text = """
 Dockerfile reference
 Overview
@@ -186,7 +186,7 @@ terms = [
 [[cases]]
 name = "kubernetes-pods"
 url = "https://kubernetes.io/docs/concepts/workloads/pods/"
-image = "./benchmarks/screens/kubernetes-pods.png"
+image = "./screens/kubernetes-pods.png"
 expected_text = """
 Pods
 What is a Pod?
@@ -201,7 +201,7 @@ terms = [
 [[cases]]
 name = "postgres-json-functions"
 url = "https://www.postgresql.org/docs/current/functions-json.html"
-image = "./benchmarks/screens/postgres-json-functions.png"
+image = "./screens/postgres-json-functions.png"
 expected_text = """
 9.16. JSON Functions and Operators
 Processing and Creating JSON Data
@@ -216,7 +216,7 @@ terms = [
 [[cases]]
 name = "nginx-beginners-guide"
 url = "https://nginx.org/en/docs/beginners_guide.html"
-image = "./benchmarks/screens/nginx-beginners-guide.png"
+image = "./screens/nginx-beginners-guide.png"
 expected_text = """
 Beginner's Guide
 Starting, Stopping, and Reloading Configuration

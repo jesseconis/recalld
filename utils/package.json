@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ocr-benchmark:screens": "node ./benchmarks/generate-ocr-benchmark-screenshots.mjs"
+    "ocr-benchmark:screens": "node generate-ocr-benchmark-screenshots.mjs"
   },
   "devDependencies": {
     "playwright": "^1.54.2",
