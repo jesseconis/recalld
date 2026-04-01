@@ -4,6 +4,7 @@ mod cli;
 mod config;
 mod daemon;
 mod embedding;
+mod metadata;
 mod ocr;
 mod plugin;
 mod storage;
@@ -37,6 +38,32 @@ enum Commands {
     },
     /// Show daemon status
     Status,
+    /// Clean persisted daemon runtime data (DB, screenshots, PID)
+    Clean {
+        /// Also remove the encrypted data-encryption key (`key.enc`).
+        #[arg(long)]
+        delete_dek: bool,
+        /// Start the daemon again after cleaning.
+        #[arg(long)]
+        restart_daemon: bool,
+        /// Passphrase used only when `--restart-daemon` is set.
+        /// Falls back to RECALLD_PASSPHRASE if omitted.
+        #[arg(long, env = "RECALLD_PASSPHRASE", requires = "restart_daemon")]
+        passphrase: Option<String>,
+    },
+    /// Score OCR variants against a local benchmark manifest
+    OcrBenchmark {
+        /// Path to a TOML benchmark manifest with `[[cases]]` entries.
+        #[arg(long)]
+        manifest: std::path::PathBuf,
+        /// OCR variant to run. Repeat to compare multiple variants.
+        /// Supported values: `default`, `no-downscale`, `max-width=<pixels>`.
+        #[arg(long = "variant")]
+        variants: Vec<String>,
+        /// Emit machine-readable JSON instead of the pretty text report.
+        #[arg(long)]
+        json: bool,
+    },
     /// Manage plugins
     Plugin {
         #[command(subcommand)]
@@ -117,6 +144,22 @@ async fn async_main(cli: Cli, config: config::Config) -> anyhow::Result<()> {
 
         Commands::Status => {
             cli::status(&config.grpc.listen_addr).await?;
+        }
+
+        Commands::Clean {
+            delete_dek,
+            restart_daemon,
+            passphrase,
+        } => {
+            cli::clean(&config, delete_dek, restart_daemon, passphrase.as_deref())?;
+        }
+
+        Commands::OcrBenchmark {
+            manifest,
+            variants,
+            json,
+        } => {
+            cli::ocr_benchmark(&manifest, &variants, json)?;
         }
 
         Commands::Plugin { action } => {

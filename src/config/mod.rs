@@ -24,6 +24,10 @@ const DEFAULT_HTTP_MAX_PAGE_SIZE: u32 = 100;
 const DEFAULT_SEARCH_LIMIT: u32 = 20;
 /// Default number of threads for the embedding model (ONNX Runtime intra-op).
 const DEFAULT_EMBEDDING_THREADS: usize = 2;
+/// Default max OCR input width. `0` disables downscaling.
+const DEFAULT_OCR_MAX_WIDTH: u32 = 1280;
+/// Default lexical-vs-semantic blend weight for search ranking.
+const DEFAULT_LEXICAL_WEIGHT: f32 = 0.35;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -93,6 +97,12 @@ pub struct PluginsConfig {
 pub struct ProcessingConfig {
     /// Number of threads for the embedding model (ONNX Runtime intra-op parallelism).
     pub embedding_threads: usize,
+    /// Downscale OCR inputs wider than this many pixels before Tesseract.
+    /// Set to `0` to keep the original resolution.
+    pub ocr_max_width: u32,
+    /// Blend weight for lexical ranking in hybrid search.
+    /// `0.0` = semantic only, `1.0` = lexical only.
+    pub lexical_weight: f32,
 }
 
 // --- Defaults ---
@@ -160,6 +170,8 @@ impl Default for ProcessingConfig {
     fn default() -> Self {
         Self {
             embedding_threads: DEFAULT_EMBEDDING_THREADS,
+            ocr_max_width: DEFAULT_OCR_MAX_WIDTH,
+            lexical_weight: DEFAULT_LEXICAL_WEIGHT,
         }
     }
 }
@@ -207,6 +219,10 @@ impl Config {
             self.processing.embedding_threads > 0,
             "processing.embedding_threads must be greater than 0"
         );
+        ensure!(
+            (0.0..=1.0).contains(&self.processing.lexical_weight),
+            "processing.lexical_weight must be between 0.0 and 1.0 inclusive"
+        );
         ensure!(self.http.session_ttl_secs > 0, "http.session_ttl_secs must be greater than 0");
         ensure!(
             self.http.default_page_size > 0,
@@ -239,6 +255,16 @@ impl Config {
     /// Path to the SQLite database.
     pub fn db_path(&self) -> PathBuf {
         self.data_dir().join("recalld.db")
+    }
+
+    /// Path to the SQLite WAL sidecar file.
+    pub fn db_wal_path(&self) -> PathBuf {
+        path_with_suffix(&self.db_path(), "-wal")
+    }
+
+    /// Path to the SQLite shared-memory sidecar file.
+    pub fn db_shm_path(&self) -> PathBuf {
+        path_with_suffix(&self.db_path(), "-shm")
     }
 
     /// Path to the encrypted data-encryption key file.
@@ -294,4 +320,10 @@ pub fn default_data_dir() -> PathBuf {
     dirs::data_dir()
         .expect("could not determine XDG data dir")
         .join("recalld")
+}
+
+fn path_with_suffix(path: &std::path::Path, suffix: &str) -> PathBuf {
+    let mut out = path.as_os_str().to_os_string();
+    out.push(suffix);
+    PathBuf::from(out)
 }
