@@ -97,6 +97,7 @@ async function captureCase(page, manifestDir, caseSpec) {
   }
 
   const screenshotPath = path.resolve(manifestDir, caseSpec.image);
+	console.log(screenshotPath);
   await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
 
   const viewport = {
@@ -105,7 +106,7 @@ async function captureCase(page, manifestDir, caseSpec) {
   };
   await page.setViewportSize(viewport);
 
-  console.log(`capture ${caseSpec.name}: ${caseSpec.url}`);
+	// console.log(`capture ${caseSpec.name}: ${caseSpec.url}`);
   await page.goto(caseSpec.url, { waitUntil: "domcontentloaded", timeout: 30000 });
   await preparePage(page);
 
