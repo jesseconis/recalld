@@ -1,0 +1,230 @@
+# Copy this file to ocr-benchmark.toml and update paths/text for your local corpus.
+#
+# Keep this corpus private and stable (20-30 screenshots) so OCR changes are
+# measured against the same examples over time.
+
+[[cases]]
+name = "github-recalld-repo"
+url = "https://github.com/jesseconis/recalld"
+image = "./benchmarks/screens/github-recalld-repo.png"
+expected_text = """
+jesseconis/recalld
+Retrace your steps in Wayland
+README.md
+"""
+terms = [
+  "jesseconis/recalld",
+  "Retrace your steps in Wayland",
+  "README.md",
+]
+
+[[cases]]
+name = "tokio-docsrs-crate"
+url = "https://docs.rs/tokio/latest/tokio/"
+image = "./benchmarks/screens/tokio-docsrs-crate.png"
+expected_text = """
+Crate tokio
+A runtime for writing reliable network applications
+A Tour of Tokio
+"""
+terms = [
+  "tokio",
+  "A runtime for writing reliable network applications",
+  "A Tour of Tokio",
+]
+
+[[cases]]
+name = "axum-docsrs-crate"
+url = "https://docs.rs/axum/latest/axum/"
+image = "./benchmarks/screens/axum-docsrs-crate.png"
+expected_text = """
+Crate axum
+axum is a web application framework that focuses on ergonomics and modularity
+High-level features
+"""
+terms = [
+  "axum",
+  "ergonomics and modularity",
+  "High-level features",
+]
+
+[[cases]]
+name = "clap-docsrs-crate"
+url = "https://docs.rs/clap/latest/clap/"
+image = "./benchmarks/screens/clap-docsrs-crate.png"
+expected_text = """
+Crate clap
+Command Line Argument Parser for Rust
+Aspirations
+"""
+terms = [
+  "clap",
+  "Command Line Argument Parser for Rust",
+  "Aspirations",
+]
+
+[[cases]]
+name = "serde-home"
+url = "https://serde.rs/"
+image = "./benchmarks/screens/serde-home.png"
+expected_text = """
+Serde
+serializing and deserializing Rust data structures efficiently and generically
+Data formats
+"""
+terms = [
+  "Serde",
+  "serializing and deserializing Rust data structures",
+  "Data formats",
+]
+
+[[cases]]
+name = "rust-book-ownership"
+url = "https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html"
+image = "./benchmarks/screens/rust-book-ownership.png"
+expected_text = """
+The Rust Programming Language
+What Is Ownership?
+Ownership Rules
+"""
+terms = [
+  "The Rust Programming Language",
+  "What Is Ownership?",
+  "Ownership Rules",
+]
+
+[[cases]]
+name = "rust-std-option"
+url = "https://doc.rust-lang.org/std/option/enum.Option.html"
+image = "./benchmarks/screens/rust-std-option.png"
+expected_text = """
+Enum Option
+Variants
+Some(T)
+"""
+terms = [
+  "Enum Option",
+  "Variants",
+  "Some(T)",
+]
+
+[[cases]]
+name = "cargo-book-home"
+url = "https://doc.rust-lang.org/cargo/"
+image = "./benchmarks/screens/cargo-book-home.png"
+expected_text = """
+The Cargo Book
+Cargo is the Rust package manager
+Sections
+"""
+terms = [
+  "The Cargo Book",
+  "Rust package manager",
+  "Sections",
+]
+
+[[cases]]
+name = "python-asyncio-docs"
+url = "https://docs.python.org/3/library/asyncio.html"
+image = "./benchmarks/screens/python-asyncio-docs.png"
+expected_text = """
+asyncio
+High-level APIs
+Low-level APIs
+"""
+terms = [
+  "asyncio",
+  "High-level APIs",
+  "Low-level APIs",
+]
+
+[[cases]]
+name = "sqlite-fts5"
+url = "https://www.sqlite.org/fts5.html"
+image = "./benchmarks/screens/sqlite-fts5.png"
+expected_text = """
+SQLite FTS5 Extension
+1. Overview of FTS5
+2. Compiling and Using FTS5
+"""
+terms = [
+  "SQLite FTS5 Extension",
+  "Overview of FTS5",
+  "Compiling and Using FTS5",
+]
+
+[[cases]]
+name = "mdn-fetch-api"
+url = "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API"
+image = "./benchmarks/screens/mdn-fetch-api.png"
+expected_text = """
+Fetch API
+The Fetch API provides an interface for fetching resources
+Concepts and usage
+"""
+terms = [
+  "Fetch API",
+  "interface for fetching resources",
+  "Concepts and usage",
+]
+
+[[cases]]
+name = "dockerfile-reference"
+url = "https://docs.docker.com/reference/dockerfile/"
+image = "./benchmarks/screens/dockerfile-reference.png"
+expected_text = """
+Dockerfile reference
+Overview
+The Dockerfile supports the following instructions
+"""
+terms = [
+  "Dockerfile reference",
+  "Overview",
+  "supports the following instructions",
+]
+
+[[cases]]
+name = "kubernetes-pods"
+url = "https://kubernetes.io/docs/concepts/workloads/pods/"
+image = "./benchmarks/screens/kubernetes-pods.png"
+expected_text = """
+Pods
+What is a Pod?
+Working with Pods
+"""
+terms = [
+  "Pods",
+  "What is a Pod?",
+  "Working with Pods",
+]
+
+[[cases]]
+name = "postgres-json-functions"
+url = "https://www.postgresql.org/docs/current/functions-json.html"
+image = "./benchmarks/screens/postgres-json-functions.png"
+expected_text = """
+9.16. JSON Functions and Operators
+Processing and Creating JSON Data
+The SQL/JSON Path Language
+"""
+terms = [
+  "JSON Functions and Operators",
+  "Processing and Creating JSON Data",
+  "SQL/JSON Path Language",
+]
+
+[[cases]]
+name = "nginx-beginners-guide"
+url = "https://nginx.org/en/docs/beginners_guide.html"
+image = "./benchmarks/screens/nginx-beginners-guide.png"
+expected_text = """
+Beginner's Guide
+Starting, Stopping, and Reloading Configuration
+Serving Static Content
+"""
+terms = [
+  "Beginner's Guide",
+  "Starting, Stopping, and Reloading Configuration",
+  "Serving Static Content",
+]
+
